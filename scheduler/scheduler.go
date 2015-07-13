@@ -33,6 +33,32 @@ func New(bin, corpus string, artifactURIs ...string) *Scheduler {
 	}
 }
 
+func NewFuzzMasterExecutorInfo(os string, host string, port int, corpus string) *mesos.ExecutorInfo {
+	cmd := fmt.Sprintf("mkdir -p work/corpus; unzip %s-%s -d ./work/corpus; "+
+		"./go-fuzz-%s -workdir=work -master=%s:%d > master.log", corpus, os, os, host, port)
+	return &mesos.ExecutorInfo{
+		ExecutorId: &mesos.ExecutorID{Value: proto.String("fuzzlr-executor")},
+		Command: &mesos.CommandInfo{
+			Value: proto.String(cmd),
+			Uris:  commandURIs(artifactURIs...),
+		},
+		Name: proto.String("Fuzzer"),
+	}
+}
+
+func NewSlaveExecutorInfo(masterHost string, masterPort int, bin string) *mesos.ExecutorInfo {
+	cmd := fmt.Sprintf("./go-fuzz -bin=%s -slave=%s:%d -v=1 > slave.log",
+		bin, masterHost, masterPort)
+	return &mesos.ExecutorInfo{
+		ExecutorId: &mesos.ExecutorID{Value: proto.String("fuzzlr-executor")},
+		Command: &mesos.CommandInfo{
+			Value: proto.String(cmd),
+			Uris:  commandURIs(artifactURIs...),
+		},
+		Name: proto.String("Fuzzer"),
+	}
+}
+
 // Shutdown shuts down the scheduler or times out after a given duration.
 func (s *Scheduler) Shutdown(timeout time.Duration) error {
 	close(s.shutdown)
